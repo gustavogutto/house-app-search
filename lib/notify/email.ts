@@ -1,4 +1,4 @@
-import * as postmark from "postmark";
+import { Resend } from "resend";
 
 export interface EmailSendResult {
   status: "sent" | "failed";
@@ -12,22 +12,24 @@ export async function sendEmail(
   htmlBody: string,
   textBody: string
 ): Promise<EmailSendResult> {
-  const token = process.env.POSTMARK_SERVER_TOKEN;
-  if (!token) {
-    return { status: "failed", errorMessage: "POSTMARK_SERVER_TOKEN not configured" };
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return { status: "failed", errorMessage: "RESEND_API_KEY not configured" };
   }
 
   try {
-    const client = new postmark.ServerClient(token);
-    const result = await client.sendEmail({
-      From: process.env.POSTMARK_FROM_EMAIL || "alerts@example.com",
-      To: toEmail,
-      Subject: subject,
-      HtmlBody: htmlBody,
-      TextBody: textBody,
-      MessageStream: "outbound",
+    const resend = new Resend(apiKey);
+    const { data, error } = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+      to: toEmail,
+      subject,
+      html: htmlBody,
+      text: textBody,
     });
-    return { status: "sent", providerMessageId: result.MessageID };
+    if (error) {
+      return { status: "failed", errorMessage: error.message };
+    }
+    return { status: "sent", providerMessageId: data?.id };
   } catch (err) {
     return { status: "failed", errorMessage: err instanceof Error ? err.message : String(err) };
   }

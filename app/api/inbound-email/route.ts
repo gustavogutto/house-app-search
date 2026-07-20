@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { Resend } from "resend";
 import { db } from "@/lib/db";
 import { inboundEmails, listings, filterCriteria, listingMatches } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
@@ -9,34 +9,6 @@ import { notifyNewMatch } from "@/lib/notify/fanout";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
-
-const postmarkInboundSchema = z
-  .object({
-    MessageID: z.string().optional(),
-    From: z.string().optional(),
-    FromFull: z.object({ Email: z.string().optional() }).optional(),
-    Subject: z.string().optional(),
-    TextBody: z.string().optional(),
-    HtmlBody: z.string().optional(),
-  })
-  .passthrough();
-
-function checkBasicAuth(request: Request): boolean {
-  const expectedUser = process.env.POSTMARK_INBOUND_WEBHOOK_USER;
-  const expectedPass = process.env.POSTMARK_INBOUND_WEBHOOK_PASS;
-  if (!expectedUser || !expectedPass) return false;
-
-  const header = request.headers.get("authorization");
-  if (!header?.startsWith("Basic ")) return false;
-
-  const decoded = Buffer.from(header.slice("Basic ".length), "base64").toString("utf-8");
-  const separatorIndex = decoded.indexOf(":");
-  if (separatorIndex === -1) return false;
-
-  const user = decoded.slice(0, separatorIndex);
-  const pass = decoded.slice(separatorIndex + 1);
-  return user === expectedUser && pass === expectedPass;
-}
 
 function normalizeUrl(rawUrl: string): string {
   try {
@@ -50,39 +22,64 @@ function normalizeUrl(rawUrl: string): string {
 }
 
 export async function POST(request: Request) {
-  if (!checkBasicAuth(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const apiKey = process.env.RESEND_API_KEY;
+  const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
+  if (!apiKey || !webhookSecret) {
+    return NextResponse.json({ error: "Server not configured" }, { status: 500 });
   }
 
-  let body: unknown;
+  // Signature verification needs the exact raw body bytes, so this must be
+  // read as text before any JSON parsing.
+  const rawBody = await request.text();
+  const svixId = request.headers.get("svix-id");
+  const svixTimestamp = request.headers.get("svix-timestamp");
+  const svixSignature = request.headers.get("svix-signature");
+
+  const resend = new Resend(apiKey);
+
+  let event;
   try {
-    body = await request.json();
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      throw new Error("Missing svix signature headers");
+    }
+    event = resend.webhooks.verify({
+      payload: rawBody,
+      headers: { id: svixId, timestamp: svixTimestamp, signature: svixSignature },
+      webhookSecret,
+    });
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
   }
 
-  const parsed = postmarkInboundSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Unexpected payload shape" }, { status: 400 });
+  if (event.type !== "email.received") {
+    // We only asked Resend to send us this event type, but ignore anything
+    // else gracefully rather than erroring.
+    return NextResponse.json({ ok: true, status: "ignored", eventType: event.type });
   }
-  const payload = parsed.data;
 
-  const fromEmail = payload.FromFull?.Email ?? payload.From ?? "";
-  const subject = payload.Subject ?? "";
-  const htmlBody = payload.HtmlBody ?? "";
-  const textBody = payload.TextBody ?? "";
+  // Fetch the full email — the webhook payload itself only has metadata
+  // (from/subject/attachments), not the html/text body.
+  const { data: email, error: fetchError } = await resend.emails.receiving.get(event.data.email_id);
+  if (fetchError || !email) {
+    return NextResponse.json({ error: "Failed to fetch received email" }, { status: 502 });
+  }
+
+  const fromEmail = email.from;
+  const subject = email.subject;
+  const htmlBody = email.html ?? "";
+  const textBody = email.text ?? "";
 
   // Step 1: store the raw email immediately, before any parsing is attempted.
   // This must succeed independent of parser bugs so we never lose data.
   const [savedEmail] = await db
     .insert(inboundEmails)
     .values({
-      messageId: payload.MessageID,
+      messageId: email.message_id,
       fromEmail,
       subject,
       textBody,
       htmlBody,
-      rawPayload: body as object,
+      rawPayload: email as object,
       parseStatus: "pending",
     })
     .returning();
@@ -177,7 +174,8 @@ export async function POST(request: Request) {
       .update(inboundEmails)
       .set({ parseStatus: "failed", parseError: err instanceof Error ? err.message : String(err) })
       .where(eq(inboundEmails.id, savedEmail.id));
-    // Still 200: the raw email is safely stored, and Postmark shouldn't retry-storm on our bug.
+    // Still 200: the raw email is safely stored, and a retry-storm from
+    // Resend on our own bug wouldn't help.
     return NextResponse.json({ ok: true, status: "error_after_save" });
   }
 }
