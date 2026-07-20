@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth/current-user";
 
-export function NavBar({ active }: { active: "dashboard" | "settings" }) {
+export async function NavBar({ active }: { active: "dashboard" | "settings" }) {
+  const user = await getCurrentUser();
+
   return (
     <header className="border-b border-slate-800 bg-slate-950">
       <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -25,11 +28,14 @@ export function NavBar({ active }: { active: "dashboard" | "settings" }) {
             </Link>
           </nav>
         </div>
-        <form action="/api/auth/logout" method="POST">
-          <button type="submit" className="text-sm text-slate-400 hover:text-white">
-            Log out
-          </button>
-        </form>
+        <div className="flex items-center gap-3">
+          {user && <span className="text-sm text-slate-500 hidden sm:inline">{user.email}</span>}
+          <form action="/api/auth/logout" method="POST">
+            <button type="submit" className="text-sm text-slate-400 hover:text-white">
+              Log out
+            </button>
+          </form>
+        </div>
       </div>
     </header>
   );

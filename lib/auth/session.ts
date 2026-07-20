@@ -11,8 +11,13 @@ function getSecretKey() {
   return new TextEncoder().encode(secret);
 }
 
-export async function createSessionToken(): Promise<string> {
-  return new SignJWT({ auth: true })
+export interface SessionPayload {
+  recipientId: string;
+  email: string;
+}
+
+export async function createSessionToken(payload: SessionPayload): Promise<string> {
+  return new SignJWT({ auth: true, recipientId: payload.recipientId, email: payload.email })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_DURATION_SECONDS}s`)
@@ -25,6 +30,18 @@ export async function verifySessionToken(token: string): Promise<boolean> {
     return payload.auth === true;
   } catch {
     return false;
+  }
+}
+
+export async function getSessionPayload(token: string): Promise<SessionPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, getSecretKey());
+    if (payload.auth !== true || typeof payload.recipientId !== "string" || typeof payload.email !== "string") {
+      return null;
+    }
+    return { recipientId: payload.recipientId, email: payload.email };
+  } catch {
+    return null;
   }
 }
 

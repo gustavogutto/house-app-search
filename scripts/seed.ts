@@ -1,18 +1,10 @@
 import { db } from "../lib/db";
-import { filterCriteria, recipients } from "../lib/db/schema";
+import { filterCriteria } from "../lib/db/schema";
 
+// Recipients (who can log in + get notified) are created via
+// `npm run set-password -- "email" "password"`, not seeded here, since each
+// one needs a real email + password to log in with.
 async function main() {
-  const existingRecipients = await db.select().from(recipients);
-  if (existingRecipients.length === 0) {
-    await db.insert(recipients).values([
-      { name: "You", email: undefined, phone: undefined },
-      { name: "Girlfriend", email: undefined, phone: undefined },
-    ]);
-    console.log("Seeded 2 recipient rows — edit them in /settings with real email/phone.");
-  } else {
-    console.log(`Recipients table already has ${existingRecipients.length} row(s), skipping.`);
-  }
-
   const existingFilters = await db.select().from(filterCriteria);
   if (existingFilters.length === 0) {
     await db.insert(filterCriteria).values([

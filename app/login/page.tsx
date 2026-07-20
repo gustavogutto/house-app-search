@@ -14,12 +14,19 @@ export default function LoginPage() {
       >
         <div>
           <h1 className="text-xl font-semibold text-white">Dublin Rental Alerts</h1>
-          <p className="text-sm text-slate-400 mt-1">Enter the shared password to continue.</p>
+          <p className="text-sm text-slate-400 mt-1">Log in with your email and password.</p>
         </div>
+        <input
+          type="email"
+          name="email"
+          autoFocus
+          required
+          placeholder="Email"
+          className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        />
         <input
           type="password"
           name="password"
-          autoFocus
           required
           placeholder="Password"
           className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
