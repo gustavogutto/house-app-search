@@ -29,7 +29,7 @@ export function isConfirmationEmail(subject: string, html: string): boolean {
 }
 
 export function extractConfirmationLink(html: string): string | undefined {
-  const match = html.match(/https?:\/\/[^\s"'<>]*confirm[^\s"'<>]*/i);
+  const match = html.match(/https?:\/\/[^\s"'<>]*(?:confirm|verify|activate|action-token|opt-?in)[^\s"'<>]*/i);
   return match?.[0];
 }
 
