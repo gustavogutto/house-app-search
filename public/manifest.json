@@ -1,0 +1,15 @@
+{
+  "name": "Dublin Rental Alerts",
+  "short_name": "Rental Alerts",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "/next.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
