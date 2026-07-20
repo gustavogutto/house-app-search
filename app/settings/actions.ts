@@ -62,9 +62,7 @@ export async function updateRecipient(formData: FormData) {
     .set({
       name: (formData.get("name") as string) || "Unnamed",
       email: (formData.get("email") as string) || null,
-      phone: (formData.get("phone") as string) || null,
       notifyEmail: formData.get("notifyEmail") === "on",
-      notifySms: formData.get("notifySms") === "on",
       notifyPush: formData.get("notifyPush") === "on",
     })
     .where(eq(recipients.id, id));

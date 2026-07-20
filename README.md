@@ -1,6 +1,6 @@
 # Dublin Rental Alerts
 
-Watches Daft.ie / Rent.ie / MyHome.ie saved-search alert emails and notifies you and your girlfriend within seconds of a new matching listing, via push notification, SMS, and email.
+Watches Daft.ie / Rent.ie / MyHome.ie saved-search alert emails and notifies you and your girlfriend within seconds of a new matching listing, via push notification and email.
 
 No scraping: the three sites' own "email me new listings" saved-search feature is pointed at a dedicated inbound-parsing email address, so ingestion is real-time and stays within each site's Terms of Service.
 
@@ -10,7 +10,7 @@ No scraping: the three sites' own "email me new listings" saved-search feature i
 2. The moment an alert email arrives, Resend POSTs a webhook event to `/api/inbound-email`, which fetches the full email content.
 3. The raw email is stored immediately (`inbound_emails` table), then parsed for listing details (price, address, bedrooms, link).
 4. New listings are checked against your saved filters (`/settings`).
-5. On a match, push + SMS + email all fire, and every attempt is logged (`notification_log`).
+5. On a match, push + email both fire, and every attempt is logged (`notification_log`).
 6. `/dashboard` shows everything ingested; `/dashboard/[id]/raw` shows the raw email next to what was extracted, for debugging.
 
 Each person has their own login (email + password), managed with `npm run set-password`.
@@ -19,10 +19,9 @@ Each person has their own login (email + password), managed with `npm run set-pa
 
 ### 1. Accounts you need to create
 - **Resend** (https://resend.com) — for inbound email parsing and outbound notification emails. Free tier, no custom domain needed for inbound.
-- **Twilio** (https://twilio.com) — for SMS. A trial account works for 2 known phone numbers.
 - **Vercel Marketplace Postgres (Neon)** — provisioned through your Vercel project, no separate signup.
 
-> Outbound notification email is sent from Resend's shared `onboarding@resend.dev` address, which does not require domain verification but has weaker deliverability (may land in spam) — push notifications and SMS are the reliable "instant" channels; treat email as a bonus. Verifying your own domain in Resend later removes this limitation.
+> Outbound notification email is sent from Resend's shared `onboarding@resend.dev` address, which does not require domain verification but has weaker deliverability (may land in spam) — push notifications are the reliable "instant" channel; treat email as a bonus. Verifying your own domain in Resend later removes this limitation.
 
 ### 2. Install dependencies
 ```bash
@@ -56,7 +55,7 @@ npx web-push generate-vapid-keys   # -> VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY
 ```
 Also generate a random `SESSION_SECRET` (e.g. `openssl rand -base64 32`).
 
-Copy `.env.example` to `.env.local` and fill in everything (see that file for the full list): Resend API key + webhook secret, Twilio SID/token/number, the VAPID keys, and the session secret. Set `NEXT_PUBLIC_VAPID_PUBLIC_KEY` to the same value as `VAPID_PUBLIC_KEY`.
+Copy `.env.example` to `.env.local` and fill in everything (see that file for the full list): Resend API key + webhook secret, the VAPID keys, and the session secret. Set `NEXT_PUBLIC_VAPID_PUBLIC_KEY` to the same value as `VAPID_PUBLIC_KEY`.
 
 Add the same values as environment variables in the Vercel project settings before deploying.
 
@@ -73,7 +72,7 @@ On Daft.ie, Rent.ie, and MyHome.ie, create a saved search for what you're lookin
 ### 8. Set your filters and enable notifications
 Go to `/settings`:
 - Edit the seeded filter (price range, areas, bedrooms) or add more.
-- Fill in your and your girlfriend's phone number (E.164 format, e.g. `+353871234567`) and toggle which channels each of you wants.
+- Toggle which channels each of you wants (push / email).
 - Click "Enable push on this device" on every phone/laptop you want alerts on. **On iPhone, you must first add the site to your Home Screen** (Share → Add to Home Screen) — Safari only delivers push notifications to installed PWAs, not to the regular browser tab.
 
 ## Local development

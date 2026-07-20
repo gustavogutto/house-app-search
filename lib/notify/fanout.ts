@@ -1,7 +1,6 @@
 import { db } from "../db";
 import { recipients, notificationLog, type listings } from "../db/schema";
 import { sendPushToAllSubscriptions } from "./webPush";
-import { sendSms } from "./sms";
 import { sendEmail } from "./email";
 
 type Listing = typeof listings.$inferSelect;
@@ -18,7 +17,7 @@ function buildMessage(listing: Listing) {
 async function logAttempt(
   listingId: string,
   recipientId: string | null,
-  channel: "push" | "sms" | "email",
+  channel: "push" | "email",
   status: "sent" | "failed" | "skipped",
   providerMessageId?: string,
   errorMessage?: string
@@ -34,10 +33,9 @@ async function logAttempt(
 }
 
 /**
- * Fans out a new-match notification across all three channels. Every
- * individual send is isolated (via allSettled + try/catch) so one channel
- * failing — e.g. Twilio misconfigured — never blocks the others, and every
- * attempt is logged regardless of outcome.
+ * Fans out a new-match notification across both channels. Every individual
+ * send is isolated (via allSettled + try/catch) so one channel failing never
+ * blocks the other, and every attempt is logged regardless of outcome.
  */
 export async function notifyNewMatch(listing: Listing): Promise<void> {
   const { subject, body } = buildMessage(listing);
@@ -58,15 +56,6 @@ export async function notifyNewMatch(listing: Listing): Promise<void> {
     }
   })();
 
-  const smsTasks = allRecipients.map(async (recipient) => {
-    if (!recipient.notifySms || !recipient.phone) {
-      await logAttempt(listing.id, recipient.id, "sms", "skipped", undefined, "no phone or opted out");
-      return;
-    }
-    const result = await sendSms(recipient.phone, body);
-    await logAttempt(listing.id, recipient.id, "sms", result.status, result.providerMessageId, result.errorMessage);
-  });
-
   const emailTasks = allRecipients.map(async (recipient) => {
     if (!recipient.notifyEmail || !recipient.email) {
       await logAttempt(listing.id, recipient.id, "email", "skipped", undefined, "no email or opted out");
@@ -81,5 +70,5 @@ export async function notifyNewMatch(listing: Listing): Promise<void> {
     await logAttempt(listing.id, recipient.id, "email", result.status, result.providerMessageId, result.errorMessage);
   });
 
-  await Promise.allSettled([pushTask, ...smsTasks, ...emailTasks]);
+  await Promise.allSettled([pushTask, ...emailTasks]);
 }

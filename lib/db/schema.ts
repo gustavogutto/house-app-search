@@ -71,10 +71,8 @@ export const recipients = pgTable("recipients", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   email: text("email").unique(),
-  phone: text("phone"), // E.164
   passwordHash: text("password_hash"), // bcrypt hash; this recipient's own dashboard login
   notifyEmail: boolean("notify_email").notNull().default(true),
-  notifySms: boolean("notify_sms").notNull().default(true),
   notifyPush: boolean("notify_push").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

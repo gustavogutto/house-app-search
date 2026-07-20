@@ -145,33 +145,19 @@ export default async function SettingsPage() {
                 defaultValue={recipient.name}
                 className="bg-transparent text-white font-medium focus:outline-none border-b border-transparent focus:border-slate-700 w-full"
               />
-              <div className="grid grid-cols-2 gap-3">
-                <label className="text-sm text-slate-400">
-                  Email
-                  <input
-                    type="email"
-                    name="email"
-                    defaultValue={recipient.email ?? ""}
-                    className="mt-1 w-full rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-white"
-                  />
-                </label>
-                <label className="text-sm text-slate-400">
-                  Phone (E.164, e.g. +353...)
-                  <input
-                    name="phone"
-                    defaultValue={recipient.phone ?? ""}
-                    className="mt-1 w-full rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-white"
-                  />
-                </label>
-              </div>
+              <label className="text-sm text-slate-400 block">
+                Email
+                <input
+                  type="email"
+                  name="email"
+                  defaultValue={recipient.email ?? ""}
+                  className="mt-1 w-full rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-white"
+                />
+              </label>
               <div className="flex gap-4 text-sm text-slate-400">
                 <label className="flex items-center gap-1.5">
                   <input type="checkbox" name="notifyEmail" defaultChecked={recipient.notifyEmail} />
                   Email
-                </label>
-                <label className="flex items-center gap-1.5">
-                  <input type="checkbox" name="notifySms" defaultChecked={recipient.notifySms} />
-                  SMS
                 </label>
                 <label className="flex items-center gap-1.5">
                   <input type="checkbox" name="notifyPush" defaultChecked={recipient.notifyPush} />
